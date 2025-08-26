@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>iOS Manual Control</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background: #222;
+    }
+    .buttons {
+      margin: 10px;
+      text-align: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      z-index: 10;
+    }
+    #stream-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    #stream {
+      border: 2px solid #ccc;
+      background: #000;
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="buttons">
+    <button onclick="startSession()">Start Session</button>
+    <button onclick="endSession()">End Session</button>
+  </div>
+  <div id="stream-container"></div>
+  <script>
+    const streamContainer = document.getElementById("stream-container");
+    window.deviceWidth = 375;
+    window.deviceHeight = 812;
+
+    function fetchDeviceInfo() {
+      return fetch('/device_info')
+        .then(response => response.json())
+        .then(data => {
+          if (data.width && data.height) {
+            window.deviceWidth = data.width;
+            window.deviceHeight = data.height;
+          }
+        })
+        .catch(err => console.error("Failed to fetch device dimensions:", err));
+    }
+
+    function startSession() {
+      fetchDeviceInfo().then(() => {
+        fetch('/start_session', { method: 'POST' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              loadStream();
+            } else {
+              alert('Error: ' + data.message);
+            }
+          })
+          .catch(err => console.error("Error starting session:", err));
+      });
+    }
+
+    function endSession() {
+      fetch('/end_session', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            unloadStream();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(err => console.error("Error ending session:", err));
+    }
+
+    function loadStream() {
+      unloadStream();
+      const stream = document.createElement("img");
+      stream.id = "stream";
+      stream.src = "/stream";
+      stream.alt = "Device Screen Stream";
+      // Set image size to match device logical screen size (px)
+      stream.style.width = window.deviceWidth + "px";
+      stream.style.height = window.deviceHeight + "px";
+      streamContainer.appendChild(stream);
+      stream.onload = function() {
+        stream.addEventListener("click", handleTouch);
+      };
+    }
+
+    function unloadStream() {
+      const stream = document.getElementById("stream");
+      if (stream) {
+        stream.removeEventListener("click", handleTouch);
+        streamContainer.removeChild(stream);
+      }
+    }
+
+    function handleTouch(event) {
+      const stream = event.target;
+      const rect = stream.getBoundingClientRect();
+      // Click position in rendered image
+      const x = Math.round(event.clientX - rect.left);
+      const y = Math.round(event.clientY - rect.top);
+      // Direct mapping: browser px == device point (since sizes match)
+      fetch('/tap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x, y })
+      })
+        .then(response => response.json())
+        .then(data => console.log("Tap response:", data))
+        .catch(err => console.error("Error during tap:", err));
+    }
+
+    // On load, fetch device info
+    fetchDeviceInfo();
+  </script>
+</body>
+</html>
