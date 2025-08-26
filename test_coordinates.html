@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coordinate Scaling Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .test-container {
+            border: 2px solid #ccc;
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .stream-mock {
+            border: 2px solid red;
+            background: #000;
+            cursor: crosshair;
+            margin: 10px 0;
+        }
+        .info {
+            background: #e8f4f8;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            margin: 10px 0;
+        }
+        .coords {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>iOS Remote Control - Coordinate Scaling Test</h1>
+    
+    <div class="info">
+        <p><strong>Test Purpose:</strong> Verify that coordinate scaling works correctly when the displayed image size differs from device dimensions.</p>
+        <p><strong>Instructions:</strong> Click on different areas of the mock stream images below to see how coordinates are transformed.</p>
+    </div>
+
+    <div class="test-container">
+        <h2>Test Case 1: Normal Scale (375x812 device, 375x812 display)</h2>
+        <div id="coords1" class="coords">Click on the image to see coordinates...</div>
+        <div id="stream1" class="stream-mock" style="width: 375px; height: 812px; max-height: 300px; overflow: hidden;">
+            Mock Device Stream (1:1 scale)
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test Case 2: Scaled Down (375x812 device, 187x406 display)</h2>
+        <div id="coords2" class="coords">Click on the image to see coordinates...</div>
+        <div id="stream2" class="stream-mock" style="width: 187px; height: 406px;">
+            Mock Device Stream (0.5x scale)
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test Case 3: Scaled Up (375x812 device, 750x1624 display)</h2>
+        <div id="coords3" class="coords">Click on the image to see coordinates...</div>
+        <div id="stream3" class="stream-mock" style="width: 750px; height: 1624px; max-height: 400px; overflow: hidden;">
+            Mock Device Stream (2x scale)
+        </div>
+    </div>
+
+    <script>
+        // Mock device dimensions (same as in the real app)
+        const deviceWidth = 375;
+        const deviceHeight = 812;
+
+        function setupTest(streamId, coordsId) {
+            const stream = document.getElementById(streamId);
+            const coords = document.getElementById(coordsId);
+            
+            stream.addEventListener('click', function(event) {
+                const rect = stream.getBoundingClientRect();
+                
+                // Click position in rendered image (browser coordinates)
+                const browserX = Math.round(event.clientX - rect.left);
+                const browserY = Math.round(event.clientY - rect.top);
+                
+                // Get actual displayed dimensions of the image
+                const displayedWidth = rect.width;
+                const displayedHeight = rect.height;
+                
+                // Calculate scale factors to convert from displayed size to device size
+                const scaleX = deviceWidth / displayedWidth;
+                const scaleY = deviceHeight / displayedHeight;
+                
+                // Apply scaling to convert browser coordinates to device coordinates
+                const deviceX = Math.round(browserX * scaleX);
+                const deviceY = Math.round(browserY * scaleY);
+                
+                // Ensure coordinates are within device bounds
+                const clampedX = Math.max(0, Math.min(deviceX, deviceWidth - 1));
+                const clampedY = Math.max(0, Math.min(deviceY, deviceHeight - 1));
+                
+                coords.innerHTML = `
+                    <strong>Browser click:</strong> (${browserX}, ${browserY})<br>
+                    <strong>Display size:</strong> ${displayedWidth.toFixed(1)}x${displayedHeight.toFixed(1)}<br>
+                    <strong>Device size:</strong> ${deviceWidth}x${deviceHeight}<br>
+                    <strong>Scale factors:</strong> (${scaleX.toFixed(3)}, ${scaleY.toFixed(3)})<br>
+                    <strong>Device coords:</strong> (${clampedX}, ${clampedY})<br>
+                    <strong>Clamped:</strong> ${clampedX !== deviceX || clampedY !== deviceY ? 'YES' : 'NO'}
+                `;
+            });
+        }
+
+        // Set up all test cases
+        setupTest('stream1', 'coords1');
+        setupTest('stream2', 'coords2');
+        setupTest('stream3', 'coords3');
+    </script>
+</body>
+</html>
