@@ -54,6 +54,28 @@ def tap():
     try:
         data = request.json
         x, y = data.get('x'), data.get('y')
+        
+        # Validate coordinates are provided
+        if x is None or y is None:
+            return jsonify({"status": "error", "message": "Missing x or y coordinates"}), 400
+        
+        # Get device dimensions for validation
+        device_info_response = requests.get(f"{WDA_URL}/status")
+        device_width, device_height = 375, 812  # defaults
+        if device_info_response.status_code == 200:
+            data_info = device_info_response.json()
+            os_info = data_info.get("value", {}).get("os", {})
+            if "width" in os_info and "height" in os_info:
+                device_width = os_info["width"]
+                device_height = os_info["height"]
+        
+        # Validate coordinates are within device bounds
+        if not (0 <= x < device_width and 0 <= y < device_height):
+            return jsonify({
+                "status": "error", 
+                "message": f"Coordinates ({x}, {y}) out of bounds for device ({device_width}x{device_height})"
+            }), 400
+        
         actions = {
             "actions": [
                 {
