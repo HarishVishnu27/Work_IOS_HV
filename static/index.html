@@ -97,6 +97,12 @@
       stream.style.height = window.deviceHeight + "px";
       streamContainer.appendChild(stream);
       stream.onload = function() {
+        // Log information about the image dimensions for debugging
+        console.log(`Device dimensions: ${window.deviceWidth}x${window.deviceHeight}`);
+        console.log(`Image natural dimensions: ${stream.naturalWidth}x${stream.naturalHeight}`);
+        console.log(`Image styled dimensions: ${stream.style.width} x ${stream.style.height}`);
+        console.log(`Image actual displayed dimensions: ${stream.getBoundingClientRect().width}x${stream.getBoundingClientRect().height}`);
+        
         stream.addEventListener("click", handleTouch);
       };
     }
@@ -112,14 +118,33 @@
     function handleTouch(event) {
       const stream = event.target;
       const rect = stream.getBoundingClientRect();
-      // Click position in rendered image
-      const x = Math.round(event.clientX - rect.left);
-      const y = Math.round(event.clientY - rect.top);
-      // Direct mapping: browser px == device point (since sizes match)
+      
+      // Click position in rendered image (browser coordinates)
+      const browserX = Math.round(event.clientX - rect.left);
+      const browserY = Math.round(event.clientY - rect.top);
+      
+      // Get actual displayed dimensions of the image
+      const displayedWidth = rect.width;
+      const displayedHeight = rect.height;
+      
+      // Calculate scale factors to convert from displayed size to device size
+      const scaleX = window.deviceWidth / displayedWidth;
+      const scaleY = window.deviceHeight / displayedHeight;
+      
+      // Apply scaling to convert browser coordinates to device coordinates
+      const deviceX = Math.round(browserX * scaleX);
+      const deviceY = Math.round(browserY * scaleY);
+      
+      // Ensure coordinates are within device bounds
+      const clampedX = Math.max(0, Math.min(deviceX, window.deviceWidth - 1));
+      const clampedY = Math.max(0, Math.min(deviceY, window.deviceHeight - 1));
+      
+      console.log(`Browser click: (${browserX}, ${browserY}), Display size: ${displayedWidth}x${displayedHeight}, Device size: ${window.deviceWidth}x${window.deviceHeight}, Scale: (${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}), Device coords: (${clampedX}, ${clampedY})`);
+      
       fetch('/tap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ x, y })
+        body: JSON.stringify({ x: clampedX, y: clampedY })
       })
         .then(response => response.json())
         .then(data => console.log("Tap response:", data))
